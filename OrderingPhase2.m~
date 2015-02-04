@@ -1,0 +1,88 @@
+function w = OrderingPhase(w, data, p)
+  
+%A = FormAdjacencyMatrix(p.xOut, p.yOut);
+%[coeffMatrix, dataProjection] = FindPCA(data);
+
+eta = eta0;
+sigma = sigma0;
+nEpochs = 10;
+sigmaTau = 400000/log(sigma0);%4000/log(sigma0);    % Neighbourhood
+etaTau = 1000;              %1000;                % Stephlength
+
+% positions of output neurons in a grid
+positionsI = (1:p.yOut)'*ones(1,xOut); 
+positionsJ = (ones(1,p.yOut)'*(1:xOut));
+
+% for the movie
+% set the figure size for animation
+fig = figure('position',[100 100 850 600]);
+frame_num = 1;
+
+ for k = 1:nEpochs 
+ 
+ waitbar(k/nEpochs);   
+ personPerm = randperm(nPersons);  
+     
+ 
+  for n = 1:nPersons 
+ 
+   % save a picture of projected weights on principal components
+   if makeMovie && mod(n-1, 10) == 0
+     pcaGroups = PlotPCA(coeffMatrix, dataProjection, classType, w, A); 
+     frame(frame_num) = getframe(fig);
+     clf(fig);
+     frame_num = frame_num + 1;
+   end    
+          
+      
+   % iteration altogether, current person
+   currentIteration = (k-1)*nPersons + n;      
+   currentIn = input(personPerm(n),:);    
+   
+   % find winner
+   [winner, d] = FindWinner(w, currentIn, nOut);
+   % find coordinates of a winner in a grid
+   [iWinner, jWinner] = FindWinnerCoordinates(winner, xOut, yOut);
+
+
+   % some measure of entangleness
+   %entangleness = MeasureEntangleness( xOut, yOut,  w );
+   
+   % update weights
+   distance = FindGridDistance( xOut, yOut, iWinner, jWinner, positionsI, positionsJ );
+   w = UpdateWeights( eta, sigma, w, d, distance );
+
+   % ----------------------------------------------------------------------
+   % ---------------------------------------------------------- CHANGE HERE
+   % ----------------------------------------------------------------------
+   % update parameters
+   sigma = sigma0*exp(-currentIteration/(sigmaTau));
+   eta = eta0*exp(-currentIteration/etaTau);
+    
+   end
+   
+end
+     
+
+% save the movie
+if makeMovie == 1
+    
+    size(frame)
+    writerObj = VideoWriter('WeightsEvolutionPCA.avi');
+    open(writerObj);
+    slowdown = 3;
+
+    % For 15 frames (0.5 s) stay at g = 1.
+    for i = 1:(frame_num-1)
+       for j=1:slowdown
+        writeVideo(writerObj, frame(i))
+       end 
+    end
+     
+    % Finalize the animation.
+    close(writerObj);
+    
+end
+
+
+end
